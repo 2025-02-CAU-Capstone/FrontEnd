@@ -1,6 +1,6 @@
 ---
-name: Fix Request
-about: 고쳐야 하는 기능을 설명해주세요✨
+name: Fix request
+about: 고쳐야 하는 기능을 설명해주세요 🛠️
 title: "[fix] 이슈 이름"
 labels: ''
 assignees: ''
