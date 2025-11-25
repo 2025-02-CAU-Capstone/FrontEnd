@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ImageUpload } from './components/ImageUpload';
 import { ImageOverlay } from './components/ImageOverlay';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -10,7 +10,6 @@ import { History, Search, AlertCircle } from 'lucide-react';
 import { 
   requestOCR, 
   requestSimilaritySearch, 
-  checkServerHealth,
   type MatchResult,
   type TextBox
 } from './services/ocrService';
@@ -32,22 +31,12 @@ export default function App() {
   const [, setSelectedText] = useState<string>(''); // 선택된 텍스트
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   
-  // UI/로딩 상태
+  // UI
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [isCompareLoading, setIsCompareLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
-  // 1. 서버 상태 확인
-  useEffect(() => {
-    const checkServer = async () => {
-      const isHealthy = await checkServerHealth();
-      setServerStatus(isHealthy ? 'online' : 'offline');
-    };
-    checkServer();
-  }, []);
-
-  // 2. 이미지 업로드 처리
+  // 이미지 업로드 처리
   const handleImageUpload = async (file: File) => {
     setError(null);
     setStep('upload');
@@ -85,7 +74,7 @@ export default function App() {
     }
   };
 
-  // 3. 이미지 및 상태 완전 초기화 (새 이미지 버튼용)
+  // 이미지 및 상태 완전 초기화 (새 이미지 버튼용)
   const handleClearImage = () => {
     setUploadedImage(null);
     setTextBoxes([]);
@@ -100,7 +89,7 @@ export default function App() {
     setPage('main');
   };
 
-  // 4. 텍스트 박스 선택 로직
+  // 텍스트 박스 선택 로직
   const handleToggleBox = (index: number) => {
     setSelectedIndices(prev =>
       prev.includes(index)
@@ -124,7 +113,7 @@ export default function App() {
     }
   };
 
-  // 5. 강의와 비교
+  // 강의와 비교
   const handleCompare = async () => {
     if (selectedIndices.length === 0) return;
 

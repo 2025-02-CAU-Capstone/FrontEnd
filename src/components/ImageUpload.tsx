@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { Upload, Image as ImageIcon, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Upload } from "lucide-react";
+import { Image as X } from "lucide-react";
 
 interface ImageUploadProps {
   onImageUpload: (file: File) => void;
