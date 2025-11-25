@@ -1,5 +1,5 @@
 import { Button } from "./ui/button";
-import { CheckCircle2, AlertCircle, RotateCcw, Upload, PlayCircle } from "lucide-react";
+import { CheckCircle2, RotateCcw, Upload, PlayCircle } from "lucide-react";
 
 interface MatchResult {
   lectureId: number;
@@ -18,8 +18,6 @@ interface MatchResultsProps {
 }
 
 export function MatchResults({ result, onReset, onNewUpload, lectureUrl }: MatchResultsProps) {
-  const isLowScore = false; // score 없음 → 항상 성공으로 처리
-
   // 유튜브 링크 계산 함수
   const buildYoutubeUrl = () => {
     if (result.youtubeUrl) return result.youtubeUrl; // 백엔드가 직접 줬으면 그걸 사용
