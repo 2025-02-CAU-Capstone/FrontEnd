@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload } from "lucide-react";
-import { Image as X } from "lucide-react";
+import { Upload, X, Image, FileImage, Sparkles } from "lucide-react";
 
 interface ImageUploadProps {
   onImageUpload: (file: File) => void;
@@ -10,6 +9,7 @@ interface ImageUploadProps {
 
 export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -36,14 +36,22 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
 
     const files = e.dataTransfer.files;
     if (files && files[0] && files[0].type.startsWith("image/")) {
-      onImageUpload(files[0]);
+      setIsLoading(true);
+      setTimeout(() => {
+        onImageUpload(files[0]);
+        setIsLoading(false);
+      }, 500);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
-      onImageUpload(files[0]);
+      setIsLoading(true);
+      setTimeout(() => {
+        onImageUpload(files[0]);
+        setIsLoading(false);
+      }, 500);
     }
   };
 
@@ -60,44 +68,139 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={handleClick}
-          className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
+          className={`relative border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 overflow-hidden group ${
             isDragging
-              ? "border-[#0A84FF] bg-blue-50"
-              : "border-gray-300 hover:border-[#0A84FF] hover:bg-gray-50"
+              ? "border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 scale-[1.02]"
+              : isLoading
+              ? "border-gray-300 bg-gray-50"
+              : "border-gray-300 hover:border-blue-400 hover:bg-gradient-to-br hover:from-gray-50 hover:to-blue-50"
           }`}
         >
+          {/* 배경 패턴 */}
+          <div className="absolute inset-0 opacity-5">
+            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <circle cx="10" cy="10" r="1" fill="currentColor" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+          </div>
+
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
             onChange={handleFileSelect}
             className="hidden"
+            disabled={isLoading}
           />
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 bg-[#F2F4F7] rounded-full flex items-center justify-center">
-              <Upload className="w-8 h-8 text-[#0A84FF]" strokeWidth={1.5} />
+
+          {isLoading ? (
+            <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center animate-pulse shadow-lg">
+                <Sparkles className="w-10 h-10 text-white animate-spin" />
+              </div>
+              <div>
+                <p className="text-gray-700 font-medium">이미지 로딩 중...</p>
+                <p className="text-sm text-gray-500 mt-1">잠시만 기다려주세요</p>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-700 mb-2">
-                이미지를 드래그하거나 클릭하여 업로드하세요.
-              </p>
-              <p className="text-sm text-gray-500">(JPG, PNG 파일 지원)</p>
+          ) : (
+            <div className="flex flex-col items-center gap-4 relative z-10">
+              <div className={`relative transition-all duration-300 ${
+                isDragging ? "scale-110" : "group-hover:scale-105"
+              }`}>
+                {/* 메인 아이콘 컨테이너 */}
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+                  <Upload className="w-10 h-10 text-white" strokeWidth={1.5} />
+                </div>
+                
+                {/* 플로팅 아이콘들 */}
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-lg shadow-md flex items-center justify-center animate-bounce">
+                  <Image className="w-4 h-4 text-blue-500" />
+                </div>
+                <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-white rounded-lg shadow-md flex items-center justify-center animate-bounce" style={{ animationDelay: '0.1s' }}>
+                  <FileImage className="w-4 h-4 text-indigo-500" />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-gray-800 font-medium text-lg mb-2">
+                  {isDragging ? "여기에 놓으세요!" : "이미지를 업로드하세요"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  드래그 앤 드롭 또는 클릭하여 선택
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  JPG, PNG, GIF, WEBP (최대 10MB)
+                </p>
+              </div>
+
+              {/* 업로드 힌트 */}
+              <div className="flex items-center gap-4 mt-4 text-xs text-gray-400">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span>고화질 지원</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <span>빠른 처리</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="relative rounded-2xl overflow-hidden border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg animate-in fade-in zoom-in duration-500">
+          {/* 이미지 컨테이너 */}
+          <div className="relative">
+            <img
+              src={uploadedImage}
+              alt="업로드된 이미지"
+              className="w-full max-h-[500px] object-contain"
+            />
+            
+            {/* 오버레이 그라디언트 */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
+          </div>
+
+          {/* 컨트롤 바 */}
+          <div className="absolute top-4 right-4 flex items-center gap-2 animate-in slide-in-from-top duration-300">
+            <button
+              onClick={onClearImage}
+              className="group flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg hover:bg-white hover:shadow-xl transition-all duration-200"
+            >
+              <X className="w-4 h-4 text-gray-600 group-hover:text-red-500 transition-colors" />
+              <span className="text-sm text-gray-600 group-hover:text-gray-800 font-medium">제거</span>
+            </button>
+          </div>
+
+          {/* 이미지 정보 바 */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+            <div className="flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">이미지 준비 완료</span>
+              </div>
+              <span className="text-xs opacity-75">OCR 분석 가능</span>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="relative rounded-xl overflow-hidden border border-gray-200">
-          <img
-            src={uploadedImage}
-            alt="업로드된 이미지"
-            className="w-full max-h-[400px] object-contain bg-gray-50"
-          />
-          <button
-            onClick={onClearImage}
-            className="absolute top-4 right-4 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-4 h-4 text-gray-700" />
-          </button>
+      )}
+
+      {/* 지원 형식 안내 */}
+      {!uploadedImage && (
+        <div className="flex flex-wrap gap-2 justify-center">
+          {['JPG', 'PNG', 'GIF', 'WEBP'].map((format) => (
+            <span
+              key={format}
+              className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full border border-gray-200"
+            >
+              {format}
+            </span>
+          ))}
         </div>
       )}
     </div>
