@@ -42,7 +42,7 @@ export default function App() {
     setStep('upload');
     setIsOcrLoading(true);
     
-    // 이미지 미리보기 생성
+    // 이미지 미리보기
     const reader = new FileReader();
     reader.onload = (e) => {
       setUploadedImage(e.target?.result as string);
@@ -51,21 +51,70 @@ export default function App() {
 
     try {
       const result = await requestOCR(file);
-      const boxes = result.textBoxes || [];
-      
-      if (result.success || boxes.length > 0) {
-        setTextBoxes(boxes);
-        if (result.imageWidth && result.imageHeight) {
-          setImageSize({
-            width: result.imageWidth,
-            height: result.imageHeight,
+
+      // 🔥 1) GPT 후처리 결과만 사용 (processed_groups)
+      const processed_groups = result.processed_groups || [];
+
+      // 🔥 2) processed_groups → TextBox로 변환
+      const processedTextBoxes: TextBox[] = processed_groups
+        .map((g: any) => {
+          if (!g.group_position || g.group_position.length === 0) return null;
+
+          // group_position: [[x1,y1,x2,y2], ...] 여러 개 → 하나의 큰 bounding box로 합치기
+          const xs: number[] = [];
+          const ys: number[] = [];
+
+          g.group_position.forEach((rect: number[]) => {
+            if (rect.length === 4) {
+              const [x1, y1, x2, y2] = rect;
+              xs.push(x1, x2);
+              ys.push(y1, y2);
+            }
           });
-        }
-        setStep('ocr');
+
+          if (xs.length === 0 || ys.length === 0) return null;
+
+          const minX = Math.min(...xs);
+          const minY = Math.min(...ys);
+          const maxX = Math.max(...xs);
+          const maxY = Math.max(...ys);
+
+          // 🔥 ImageOverlay가 기대하는 polygon 좌표 형식 [ [x,y], ... ] 4개
+          const polygon = [
+            [minX, minY],
+            [maxX, minY],
+            [maxX, maxY],
+            [minX, maxY],
+          ];
+
+          return {
+            text: g.merged_text ?? "",
+            confidence: 1.0,
+            box: polygon,
+          } as TextBox;
+        })
+        .filter((b: TextBox | null): b is TextBox => b !== null);
+
+      console.log("✅ processedTextBoxes:", processedTextBoxes);
+
+      // 🔥 3) 이걸 그대로 ImageOverlay에 넘김
+      if (processedTextBoxes.length > 0) {
+        setTextBoxes(processedTextBoxes);
       } else {
-        setError(result.message || '이미지에서 텍스트를 찾을 수 없습니다');
-        setStep('ocr');
+        setError("GPT 후처리 결과(processed_groups)가 비어 있습니다.");
       }
+
+      // 이미지 크기 설정 (백엔드에서 안 주면 나중에 보완 가능)
+      if (result.imageWidth && result.imageHeight) {
+        setImageSize({
+          width: result.imageWidth,
+          height: result.imageHeight,
+        });
+      } else {
+        console.warn("⚠ imageWidth / imageHeight가 응답에 없습니다.");
+      }
+
+      setStep('ocr');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OCR 처리 중 오류가 발생했습니다');
       setStep('ocr');
@@ -73,6 +122,7 @@ export default function App() {
       setIsOcrLoading(false);
     }
   };
+
 
   // 이미지 및 상태 완전 초기화 (새 이미지 버튼용)
   const handleClearImage = () => {

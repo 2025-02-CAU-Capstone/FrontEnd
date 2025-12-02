@@ -17,6 +17,7 @@ export interface OCRResponse {
   imageWidth: number;
   imageHeight: number;
   message?: string;
+  processed_groups?: ProcessedGroup[];
 }
 
 /** 유사도 검색 결과 */
