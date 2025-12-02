@@ -44,6 +44,11 @@ export interface TextBox {
   confidence: number;
   box: number[][];
 }
+export interface ProcessedGroup {
+  choose_id: number;
+  group_position: number[][];
+  merged_text: string;
+}
 
 /* -----------------------------------------------
  * 1) Spring Boot - OCR 요청 (/api/ocr/extract)
