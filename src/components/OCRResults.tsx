@@ -101,7 +101,7 @@ export function OCRResults({
       </div>
 
       {/* 문장 목록 */}
-      <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+      <div className="space-y-3 pr-2">
         {filteredSentences.map(({ sentence, index, visible }) => {
           if (!visible) return null;
           

@@ -68,15 +68,15 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={handleClick}
-          className={`relative border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 overflow-hidden group ${
+          className={`relative border-2 border-dashed rounded-toss-lg p-8 sm:p-12 text-center cursor-pointer transition-all duration-300 overflow-hidden group ${
             isDragging
-              ? "border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 scale-[1.02]"
+              ? "border-primary bg-gradient-pastel-blue scale-[1.02] shadow-soft-md"
               : isLoading
               ? "border-gray-300 bg-gray-50"
-              : "border-gray-300 hover:border-blue-400 hover:bg-gradient-to-br hover:from-gray-50 hover:to-blue-50"
+              : "border-gray-300 hover:border-primary hover:bg-gradient-pastel-blue hover:shadow-soft-md"
           }`}
         >
-          {/* 배경 패턴 */}
+          {/* Background pattern */}
           <div className="absolute inset-0 opacity-5">
             <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -98,8 +98,8 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
           />
 
           {isLoading ? (
-            <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center animate-pulse shadow-lg">
+            <div className="flex flex-col items-center gap-4 animate-spring-in">
+              <div className="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-toss flex items-center justify-center animate-pulse shadow-soft-md">
                 <Sparkles className="w-10 h-10 text-white animate-spin" />
               </div>
               <div>
@@ -112,23 +112,23 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
               <div className={`relative transition-all duration-300 ${
                 isDragging ? "scale-110" : "group-hover:scale-105"
               }`}>
-                {/* 메인 아이콘 컨테이너 */}
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+                {/* Main icon container */}
+                <div className="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-toss flex items-center justify-center shadow-soft-md group-hover:shadow-soft-lg transition-all duration-300">
                   <Upload className="w-10 h-10 text-white" strokeWidth={1.5} />
                 </div>
                 
-                {/* 플로팅 아이콘들 */}
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-lg shadow-md flex items-center justify-center animate-bounce">
-                  <Image className="w-4 h-4 text-blue-500" />
+                {/* Floating icons */}
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-xl shadow-soft-md flex items-center justify-center animate-bounce-soft icon-bounce">
+                  <Image className="w-4 h-4 text-primary" />
                 </div>
-                <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-white rounded-lg shadow-md flex items-center justify-center animate-bounce" style={{ animationDelay: '0.1s' }}>
-                  <FileImage className="w-4 h-4 text-indigo-500" />
+                <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-white rounded-xl shadow-soft-md flex items-center justify-center animate-bounce-soft icon-bounce" style={{ animationDelay: '0.1s' }}>
+                  <FileImage className="w-4 h-4 text-secondary" />
                 </div>
               </div>
 
               <div>
                 <p className="text-gray-800 font-medium text-lg mb-2">
-                  {isDragging ? "여기에 놓으세요!" : "이미지를 업로드하세요"}
+                  {isDragging ? "여기에 놓으세요" : "이미지를 업로드하세요"}
                 </p>
                 <p className="text-sm text-gray-500">
                   드래그 앤 드롭 또는 클릭하여 선택
@@ -138,14 +138,14 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
                 </p>
               </div>
 
-              {/* 업로드 힌트 */}
+              {/* Upload hints */}
               <div className="flex items-center gap-4 mt-4 text-xs text-gray-400">
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-soft"></div>
                   <span>고화질 지원</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse-soft"></div>
                   <span>빠른 처리</span>
                 </div>
               </div>
@@ -153,8 +153,8 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
           )}
         </div>
       ) : (
-        <div className="relative rounded-2xl overflow-hidden border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg animate-in fade-in zoom-in duration-500">
-          {/* 이미지 컨테이너 */}
+        <div className="relative rounded-toss-lg overflow-hidden border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 shadow-soft-lg animate-spring-in">
+          {/* Image container */}
           <div className="relative">
             <img
               src={uploadedImage}
@@ -162,26 +162,26 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
               className="w-full max-h-[500px] object-contain"
             />
             
-            {/* 오버레이 그라디언트 */}
+            {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
           </div>
 
-          {/* 컨트롤 바 */}
-          <div className="absolute top-4 right-4 flex items-center gap-2 animate-in slide-in-from-top duration-300">
+          {/* Control bar */}
+          <div className="absolute top-4 right-4 flex items-center gap-2 animate-slide-down">
             <button
               onClick={onClearImage}
-              className="group flex items-center gap-2 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg hover:bg-white hover:shadow-xl transition-all duration-200"
+              className="group flex items-center gap-2 px-3 py-2 glass rounded-toss shadow-soft-md hover:shadow-soft-lg transition-all duration-200 btn-press"
             >
               <X className="w-4 h-4 text-gray-600 group-hover:text-red-500 transition-colors" />
               <span className="text-sm text-gray-600 group-hover:text-gray-800 font-medium">제거</span>
             </button>
           </div>
 
-          {/* 이미지 정보 바 */}
+          {/* Image info bar */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <div className="flex items-center justify-between text-white">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-soft"></div>
                 <span className="text-sm font-medium">이미지 준비 완료</span>
               </div>
               <span className="text-xs opacity-75">OCR 분석 가능</span>
@@ -190,13 +190,13 @@ export function ImageUpload({ onImageUpload, uploadedImage, onClearImage }: Imag
         </div>
       )}
 
-      {/* 지원 형식 안내 */}
+      {/* Supported formats */}
       {!uploadedImage && (
         <div className="flex flex-wrap gap-2 justify-center">
           {['JPG', 'PNG', 'GIF', 'WEBP'].map((format) => (
             <span
               key={format}
-              className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full border border-gray-200"
+              className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full border border-gray-200 hover:border-primary hover:bg-gradient-pastel-blue transition-all duration-200"
             >
               {format}
             </span>

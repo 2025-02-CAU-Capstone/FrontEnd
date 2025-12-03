@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { 
   CheckCircle2, 
@@ -21,9 +21,9 @@ interface MatchResult {
   peakTimestamp?: string;
   sentence: string;
   youtubeUrl?: string;
-  confidence?: number; // 매칭 신뢰도 (0-100)
-  lectureTitle?: string; // 강의 제목
-  chapterTitle?: string; // 챕터 제목
+  confidence?: number;
+  lectureTitle?: string;
+  chapterTitle?: string;
 }
 
 interface MatchResultsProps {
@@ -36,13 +36,39 @@ interface MatchResultsProps {
 export function MatchResults({ result, onReset, onNewUpload, lectureUrl }: MatchResultsProps) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [lectureTitle, setLectureTitle] = useState<string | null>(null);
+  const [chapterTitle, setChapterTitle] = useState<string | null>(null);
 
-  // 유튜브 링크 계산 함수
+  useEffect(() => {
+      async function fetchTitles() {
+        try {
+          const lecRes = await fetch(`https://13-209-30-220.nip.io/api/lectures/${result.lectureId}`);
+          const lecData = await lecRes.json();
+          setLectureTitle(lecData.title);
+
+          const chapRes = await fetch(`https://13-209-30-220.nip.io/api/chapters/${result.chapterId}`);
+          const chapData = await chapRes.json();
+          setChapterTitle(chapData.title);
+        } catch (err) {
+          console.error("제목을 불러오지 못했습니다", err);
+        }
+      }
+
+      fetchTitles();
+    }, [result.lectureId, result.chapterId]);
+  // Getting rid of the milliseconds part
+  const stripMilliseconds = (timestamp: string) => {
+    if (!timestamp) return timestamp;
+    return timestamp.split(",")[0]; // "12:34:56,789" -> "12:34:56"
+  };
+
+  // Build YouTube link function
   const buildYoutubeUrl = () => {
     if (result.youtubeUrl) return result.youtubeUrl;
 
     if (!lectureUrl) return null;
-    const [h, m, s] = result.startTimestamp.split(":").map(Number);
+    const baseTs = stripMilliseconds(result.startTimestamp);
+    const [h, m, s] = baseTs.split(":").map(Number);
     const seconds = h * 3600 + m * 60 + s;
 
     return `${lectureUrl}?t=${seconds}`;
@@ -50,60 +76,95 @@ export function MatchResults({ result, onReset, onNewUpload, lectureUrl }: Match
 
   const youtubeLink = buildYoutubeUrl();
 
-  // 타임스탬프 복사
+  // Extract YouTube video ID from URL
+  const getYoutubeVideoId = (url: string): string | null => {
+    if (!url) return null;
+    
+    // Handle youtu.be format
+    const youtubeShortRegex = /youtu\.be\/([a-zA-Z0-9_-]+)/;
+    const shortMatch = url.match(youtubeShortRegex);
+    if (shortMatch) return shortMatch[1];
+    
+    // Handle youtube.com/watch format
+    const youtubeRegex = /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/;
+    const match = url.match(youtubeRegex);
+    if (match) return match[1];
+    
+    // Handle youtube.com/embed format
+    const embedRegex = /youtube\.com\/embed\/([a-zA-Z0-9_-]+)/;
+    const embedMatch = url.match(embedRegex);
+    if (embedMatch) return embedMatch[1];
+    
+    return null;
+  };
+
+  
+
+  // Build YouTube embed URL with timestamp
+  const getYoutubeEmbedUrl = (): string | null => {
+    if (!youtubeLink) return null;
+    
+    const videoId = getYoutubeVideoId(youtubeLink);
+    if (!videoId) return null;
+    
+    // Convert timestamp to seconds
+    const baseTs = stripMilliseconds(result.startTimestamp);
+  const [h, m, s] = baseTs.split(":").map(Number);
+    const startSeconds = h * 3600 + m * 60 + s;
+    
+    // Build embed URL with proper parameters
+    // start: 시작 시간 (초 단위)
+    // rel=0: 관련 동영상 표시 안함
+    // modestbranding=1: YouTube 로고 최소화
+    // enablejsapi=1: JavaScript API 활성화
+    return `https://www.youtube.com/embed/${videoId}?start=${startSeconds}&autoplay=0&rel=0&modestbranding=1&enablejsapi=1`;
+  };
+
+  const embedUrl = getYoutubeEmbedUrl();
+
+  // Copy timestamp
   const handleCopyTimestamp = () => {
     navigator.clipboard.writeText(result.startTimestamp);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 북마크 저장 (실제 구현 필요)
+  // Save bookmark (actual implementation needed)
   const handleSave = () => {
     setSaved(true);
-    // 실제 저장 로직 구현
+    // Implement actual save logic
   };
 
-  // 신뢰도에 따른 색상
+  // Color based on confidence
   const getConfidenceColor = (confidence: number = 85) => {
-    if (confidence >= 90) return "text-green-600 bg-green-50 border-green-200";
-    if (confidence >= 70) return "text-blue-600 bg-blue-50 border-blue-200";
-    return "text-amber-600 bg-amber-50 border-amber-200";
+    if (confidence >= 90) return "text-green-600 bg-gradient-pastel-green border-green-200";
+    if (confidence >= 70) return "text-blue-600 bg-gradient-pastel-blue border-blue-200";
+    return "text-amber-600 bg-gradient-pastel-yellow border-amber-200";
   };
 
-  const confidence = result.confidence || 92; // 기본값
+  const confidence = result.confidence || 92;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
-      {/* 성공 헤더 */}
+    <div className="space-y-6 animate-spring-in">
+      {/* Success header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl shadow-lg animate-in zoom-in duration-500">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-toss shadow-soft-lg animate-bounce-soft">
           <CheckCircle2 className="w-8 h-8 text-white" />
         </div>
         
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-1">
-            매칭 성공! 🎯
+            매칭 성공
           </h2>
           <p className="text-sm text-gray-600">
-            가장 관련성 높은 강의 구간을 찾았습니다
+            가장 관련성 높은 강의 구간을 찾았습니다!
           </p>
         </div>
       </div>
 
-      {/* 매칭 신뢰도 표시 */}
-      <div className="flex items-center justify-center gap-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-gray-500" />
-          <span className="text-sm text-gray-600">매칭 정확도</span>
-        </div>
-        <div className={`px-3 py-1 rounded-full border text-sm font-semibold ${getConfidenceColor(confidence)}`}>
-          {confidence}% 일치
-        </div>
-      </div>
-
-      {/* 메인 결과 카드 */}
-      <div className="relative rounded-2xl border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-lg">
-        {/* 배경 패턴 */}
+      {/* Main result card */}
+      <div className="relative rounded-toss border-2 border-blue-500 bg-gradient-pastel-blue p-6 shadow-soft-lg card-interactive">
+        {/* Background pattern */}
         <div className="absolute inset-0 opacity-5">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -115,23 +176,25 @@ export function MatchResults({ result, onReset, onNewUpload, lectureUrl }: Match
           </svg>
         </div>
 
-        {/* 강의 정보 */}
+        {/* Lecture information */}
         <div className="relative space-y-4">
-          {/* 강의 메타 정보 */}
+          {/* Lecture meta info */}
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/80 rounded-lg">
+            <div className="flex items-center gap-1.5 px-3 py-1 glass rounded-toss shadow-soft">
               <BookOpen className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-gray-700">Lecture #{result.lectureId}</span>
+              <span className="text-gray-700">{lectureTitle}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/80 rounded-lg">
-              <span className="text-gray-700">Chapter #{result.chapterId}</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 glass rounded-toss shadow-soft">
+              <span className="text-gray-700">{chapterTitle}</span>
             </div>
             <button
               onClick={handleCopyTimestamp}
-              className="flex items-center gap-1.5 px-3 py-1 bg-white/80 rounded-lg hover:bg-white transition-colors group"
+              className="flex items-center gap-1.5 px-3 py-1 glass rounded-toss shadow-soft hover:shadow-soft-md transition-all btn-press group"
             >
               <Clock className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-gray-700">{result.startTimestamp}</span>
+              <span className="text-gray-700">
+                {stripMilliseconds(result.startTimestamp)}
+              </span>
               {copied ? (
                 <CheckCheck className="w-3.5 h-3.5 text-green-600" />
               ) : (
@@ -140,24 +203,14 @@ export function MatchResults({ result, onReset, onNewUpload, lectureUrl }: Match
             </button>
           </div>
 
-          {/* 매칭된 문장 */}
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-1 h-full bg-gradient-to-b from-blue-400 to-indigo-400 rounded-full" />
-              <p className="text-gray-800 leading-relaxed flex-1">
-                {result.sentence}
-              </p>
-            </div>
-          </div>
-
-          {/* 액션 버튼들 */}
+          {/* Action buttons */}
           <div className="flex items-center justify-between pt-2">
             <button
               onClick={handleSave}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-toss transition-all btn-press ${
                 saved 
-                  ? 'bg-amber-100 text-amber-700' 
-                  : 'bg-white/80 hover:bg-white text-gray-600 hover:text-gray-800'
+                  ? 'bg-gradient-pastel-yellow text-amber-700' 
+                  : 'glass hover:shadow-soft-md text-gray-600 hover:text-gray-800'
               }`}
             >
               <Star className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
@@ -173,63 +226,75 @@ export function MatchResults({ result, onReset, onNewUpload, lectureUrl }: Match
         </div>
       </div>
 
-      {/* 유튜브 이동 버튼 */}
-      {youtubeLink && (
-        <div className="space-y-3">
-          <a
-            href={youtubeLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full"
-          >
-            <Button
-              className="w-full h-14 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium text-base shadow-lg hover:shadow-xl transition-all duration-200 group"
-            >
-              <div className="flex items-center justify-center gap-3">
-                <PlayCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span>YouTube에서 강의 보기</span>
-                <ExternalLink className="w-4 h-4 opacity-70" />
-              </div>
-            </Button>
-          </a>
+      {/* YouTube embedded video */}
+      {embedUrl && (
+        <div className="space-y-3 animate-spring-in">
+          {/* Video container */}
+          <div className="relative rounded-toss overflow-hidden shadow-soft-lg border-2 border-gray-200 bg-black">
+            <div className="relative" style={{ paddingBottom: '56.25%' /* 16:9 aspect ratio */ }}>
+              <iframe
+                src={embedUrl}
+                title="YouTube video player"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute top-0 left-0 w-full h-full"
+                style={{ border: 0 }}
+              />
+            </div>
+          </div>
 
-          {/* 추가 정보 */}
-          <div className="flex items-center justify-center gap-6 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              <span>바로 재생 가능</span>
+          {/* Video info */}
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-6 text-xs text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-soft" />
+                <span>타임스탬프: {stripMilliseconds(result.startTimestamp)}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse-soft" />
+                <span>{lectureTitle}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-              <span>정확한 시점 이동</span>
-            </div>
+            
+            {/* Open in new tab button */}
+            {youtubeLink && (
+              <a
+                href={youtubeLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-toss transition-colors btn-press"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>새 탭에서 열기</span>
+              </a>
+            )}
           </div>
         </div>
       )}
 
-      {/* 액션 버튼들 */}
+      {/* Action buttons */}
       <div className="grid grid-cols-2 gap-3">
         <Button
           onClick={onReset}
           variant="outline"
-          className="h-12 rounded-xl border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 group"
+          className="h-12 rounded-toss border-gray-300 hover:border-blue-400 hover:bg-gradient-pastel-blue transition-all duration-200 group btn-press"
         >
           <RotateCcw className="w-4 h-4 mr-2 group-hover:rotate-180 transition-transform duration-500" />
           <span className="font-medium">다시 검색</span>
         </Button>
         <Button
           onClick={onNewUpload}
-          className="h-12 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
+          className="h-12 rounded-toss bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-purple-600 text-white font-medium shadow-soft-md hover:shadow-soft-lg transition-all duration-200 btn-press"
         >
           <Upload className="w-4 h-4 mr-2" />
           <span>새 이미지</span>
         </Button>
       </div>
 
-      {/* 추천 액션 카드 */}
-      <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+      {/* Learning tip card */}
+      <div className="p-4 bg-gradient-pastel-purple rounded-toss border border-purple-200 shadow-soft">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 bg-purple-500 rounded-toss flex items-center justify-center flex-shrink-0">
             <Star className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">

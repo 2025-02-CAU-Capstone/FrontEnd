@@ -20,7 +20,7 @@ export function LoadingScreen({
   const [currentProgress, setCurrentProgress] = useState(0);
   const [loadingStep, setLoadingStep] = useState(0);
 
-  // 자동 프로그레스 애니메이션
+  // Auto progress animation
   useEffect(() => {
     if (progress !== undefined) {
       setCurrentProgress(progress);
@@ -35,7 +35,7 @@ export function LoadingScreen({
     }
   }, [progress]);
 
-  // 로딩 스텝 애니메이션
+  // Loading step animation
   useEffect(() => {
     const interval = setInterval(() => {
       setLoadingStep(prev => (prev + 1) % 3);
@@ -68,44 +68,47 @@ export function LoadingScreen({
   const steps = getLoadingSteps();
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 animate-in fade-in duration-500">
-      {/* 메인 로더 컨테이너 */}
+    <div className="flex flex-col items-center justify-center py-12 px-4 animate-spring-in">
+      {/* Main loader container */}
       <div className="relative mb-8">
-        {/* 외부 링 애니메이션 */}
-        <div className="absolute inset-0 rounded-full animate-pulse">
+        {/* Outer ring animation */}
+        <div className="absolute inset-0 rounded-full animate-pulse-soft">
           <div className="w-24 h-24 rounded-full border-4 border-blue-200 opacity-30"></div>
         </div>
         <div className="absolute inset-0 rounded-full animate-ping">
           <div className="w-24 h-24 rounded-full border-2 border-blue-400 opacity-20"></div>
         </div>
         
-        {/* 메인 아이콘 */}
-        <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-xl animate-pulse">
+        {/* Main icon */}
+        <div className="relative w-24 h-24 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center shadow-soft-lg animate-pulse-soft">
           {getIcon()}
           
-          {/* 플로팅 파티클 */}
+          {/* Floating particle */}
           <div className="absolute -top-1 -right-1">
-            <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
+            <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse-soft" />
           </div>
         </div>
       </div>
 
-      {/* 메시지 섹션 */}
+      {/* Message section */}
       <div className="text-center space-y-2 mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 animate-in fade-in slide-in-from-bottom-1 duration-500">
+        <h3 className="text-lg font-semibold text-gray-900 animate-slide-up">
           {message}
         </h3>
-        <p className="text-sm text-gray-600 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100">
+        <p className="text-sm text-gray-600 animate-slide-up" style={{ animationDelay: '0.1s' }}>
           {subMessage}
         </p>
       </div>
 
       {/* Progress bar */}
       {showProgress && (
-        <div className="w-full max-w-md mb-6 space-y-2 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-200">
+        <div className="w-full max-w-md mb-6 space-y-2 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <Progress 
             value={currentProgress} 
             className="h-2 bg-gray-200 shadow-inner"
+            variant="gradient"
+            color="blue"
+            animated={true}
           />
           <div className="flex items-center justify-between text-xs text-gray-500">
             <span>{Math.round(currentProgress)}%</span>
@@ -114,7 +117,7 @@ export function LoadingScreen({
         </div>
       )}
 
-      {/* 로딩 단계 인디케이터 */}
+      {/* Loading step indicators */}
       <div className="flex items-center gap-2 mb-6">
         {steps.map((step, index) => (
           <div
@@ -125,21 +128,21 @@ export function LoadingScreen({
           >
             <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
               index === loadingStep 
-                ? 'bg-blue-500 scale-125' 
+                ? 'bg-primary scale-125' 
                 : index < loadingStep 
-                  ? 'bg-green-500' 
+                  ? 'bg-success' 
                   : 'bg-gray-300'
             }`} />
             {index < steps.length - 1 && (
               <div className={`w-8 h-0.5 transition-all duration-500 ${
-                index < loadingStep ? 'bg-green-500' : 'bg-gray-300'
+                index < loadingStep ? 'bg-success' : 'bg-gray-300'
               }`} />
             )}
           </div>
         ))}
       </div>
 
-      {/* 점 bouncing 애니메이션 */}
+      {/* Bouncing dots animation */}
       <div className="flex gap-2">
         {[0, 150, 300].map((delay, index) => (
           <div 
@@ -147,7 +150,7 @@ export function LoadingScreen({
             className="relative"
           >
             <div 
-              className="w-3 h-3 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full animate-bounce shadow-lg"
+              className="w-3 h-3 bg-gradient-to-br from-primary to-secondary rounded-full animate-bounce-soft shadow-soft"
               style={{ animationDelay: `${delay}ms` }}
             />
             <div 
@@ -158,19 +161,19 @@ export function LoadingScreen({
         ))}
       </div>
 
-      {/* 팁 메시지 (선택적) */}
+      {/* Tip message (optional) */}
       {variant === 'ocr' && (
-        <div className="mt-8 p-3 bg-blue-50 rounded-xl max-w-sm animate-in fade-in duration-500 delay-500">
+        <div className="mt-8 p-3 bg-gradient-pastel-blue rounded-toss max-w-sm animate-slide-up" style={{ animationDelay: '0.5s' }}>
           <p className="text-xs text-blue-700 text-center">
-            💡 고화질 이미지일수록 OCR 정확도가 향상됩니다
+            고화질 이미지일수록 OCR 정확도가 향상됩니다
           </p>
         </div>
       )}
 
       {variant === 'matching' && (
-        <div className="mt-8 p-3 bg-indigo-50 rounded-xl max-w-sm animate-in fade-in duration-500 delay-500">
-          <p className="text-xs text-indigo-700 text-center">
-            🎯 AI가 가장 관련성 높은 강의 구간을 찾고 있습니다
+        <div className="mt-8 p-3 bg-gradient-pastel-purple rounded-toss max-w-sm animate-slide-up" style={{ animationDelay: '0.5s' }}>
+          <p className="text-xs text-purple-700 text-center">
+            AI가 가장 관련성 높은 강의 구간을 찾고 있습니다
           </p>
         </div>
       )}
