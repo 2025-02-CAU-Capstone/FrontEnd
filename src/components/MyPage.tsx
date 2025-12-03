@@ -94,7 +94,6 @@ const DUMMY_RECENT_ACTIVITY: RecentActivity[] = [
     time: "14:30",
     problemText: "35강: 부양비 도표",
     lectureTitle: "2026 수능특강 사회문화",
-    completed: true
   }
 ];
 
