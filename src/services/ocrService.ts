@@ -17,6 +17,7 @@ export interface OCRResponse {
   imageWidth: number;
   imageHeight: number;
   message?: string;
+  processed_groups?: ProcessedGroup[];
 }
 
 /** 유사도 검색 결과 */
@@ -43,6 +44,11 @@ export interface TextBox {
   text: string;
   confidence: number;
   box: number[][];
+}
+export interface ProcessedGroup {
+  choose_id: number;
+  group_position: number[][];
+  merged_text: string;
 }
 
 /* -----------------------------------------------

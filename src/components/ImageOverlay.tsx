@@ -1,22 +1,15 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { TextBox } from "../services/ocrService";
+import { Info, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 interface ImageOverlayProps {
   imageSrc: string;
   textBoxes: TextBox[];
   selectedIndices: number[];
   onToggleBox: (index: number) => void;
-  onSelectBoxes: (indices: number[]) => void;  // 여러 박스 선택
+  onSelectBoxes: (indices: number[]) => void;
   imageWidth: number;
   imageHeight: number;
-}
-
-interface DragState {
-  isDragging: boolean;
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
 }
 
 export function ImageOverlay({
@@ -30,16 +23,24 @@ export function ImageOverlay({
 }: ImageOverlayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [userScale, setUserScale] = useState(1);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const [dragState, setDragState] = useState<DragState>({
-    isDragging: false,
-    startX: 0,
-    startY: 0,
-    currentX: 0,
-    currentY: 0,
-  });
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  // 컨테이너 크기에 맞게 스케일 계산
+  // Zoom controls
+  const handleZoomIn = () => {
+    setUserScale(prev => Math.min(prev * 1.2, 3));
+  };
+
+  const handleZoomOut = () => {
+    setUserScale(prev => Math.max(prev / 1.2, 0.5));
+  };
+
+  const handleResetZoom = () => {
+    setUserScale(1);
+  };
+
+  // Calculate scale to fit container size
   useEffect(() => {
     const updateScale = () => {
       if (containerRef.current) {
@@ -48,12 +49,12 @@ export function ImageOverlay({
         
         const scaleX = containerWidth / imageWidth;
         const scaleY = maxHeight / imageHeight;
-        const newScale = Math.min(scaleX, scaleY, 1);
+        const baseScale = Math.min(scaleX, scaleY, 1);
         
-        setScale(newScale);
+        setScale(baseScale * userScale);
         setContainerSize({
-          width: imageWidth * newScale,
-          height: imageHeight * newScale,
+          width: imageWidth * baseScale * userScale,
+          height: imageHeight * baseScale * userScale,
         });
       }
     };
@@ -61,9 +62,9 @@ export function ImageOverlay({
     updateScale();
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
-  }, [imageWidth, imageHeight]);
+  }, [imageWidth, imageHeight, userScale]);
 
-  // bbox 좌표를 스케일에 맞게 변환
+  // Convert bbox coordinates to scale
   const getScaledBbox = useCallback((bbox: number[][]) => {
     const minX = Math.min(...bbox.map((p) => p[0])) * scale;
     const minY = Math.min(...bbox.map((p) => p[1])) * scale;
@@ -73,130 +74,70 @@ export function ImageOverlay({
     return { left: minX, top: minY, width: maxX - minX, height: maxY - minY, right: maxX, bottom: maxY };
   }, [scale]);
 
-  // SVG 폴리곤 포인트 생성
+  // Generate SVG polygon points
   const getPolygonPoints = useCallback((bbox: number[][]) => {
     return bbox.map((p) => `${p[0] * scale},${p[1] * scale}`).join(" ");
   }, [scale]);
 
-  // 드래그 영역 계산
-  const getDragRect = useCallback(() => {
-    const left = Math.min(dragState.startX, dragState.currentX);
-    const top = Math.min(dragState.startY, dragState.currentY);
-    const width = Math.abs(dragState.currentX - dragState.startX);
-    const height = Math.abs(dragState.currentY - dragState.startY);
-    return { left, top, width, height, right: left + width, bottom: top + height };
-  }, [dragState]);
-
-  // 두 사각형이 겹치는지 확인
-  const isOverlapping = useCallback((rect1: { left: number; top: number; right: number; bottom: number }, 
-                                      rect2: { left: number; top: number; right: number; bottom: number }) => {
-    return !(rect1.right < rect2.left || 
-             rect1.left > rect2.right || 
-             rect1.bottom < rect2.top || 
-             rect1.top > rect2.bottom);
-  }, []);
-
-  // 마우스 좌표를 컨테이너 기준으로 변환
-  const getRelativeCoords = useCallback((e: React.MouseEvent) => {
-    if (!containerRef.current) return { x: 0, y: 0 };
-    const rect = containerRef.current.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-  }, []);
-
-  // 마우스 다운 - 드래그 시작
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // 왼쪽 클릭만
-    if (e.button !== 0) return;
-    
-    const coords = getRelativeCoords(e);
-    setDragState({
-      isDragging: true,
-      startX: coords.x,
-      startY: coords.y,
-      currentX: coords.x,
-      currentY: coords.y,
-    });
-  }, [getRelativeCoords]);
-
-  // 마우스 이동 - 드래그 중
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragState.isDragging) return;
-    
-    const coords = getRelativeCoords(e);
-    setDragState(prev => ({
-      ...prev,
-      currentX: coords.x,
-      currentY: coords.y,
-    }));
-  }, [dragState.isDragging, getRelativeCoords]);
-
-  // 마우스 업 - 드래그 종료
-  const handleMouseUp = useCallback(() => {
-    if (!dragState.isDragging) return;
-
-    const dragRect = getDragRect();
-    
-    // 드래그 영역이 너무 작으면 클릭으로 처리 (5px 미만)
-    if (dragRect.width < 5 && dragRect.height < 5) {
-      setDragState(prev => ({ ...prev, isDragging: false }));
-      return;
-    }
-
-    // 드래그 영역과 겹치는 텍스트 박스 찾기
-    const overlappingIndices: number[] = [];
-    
-    textBoxes.forEach((box, index) => {
-      const boxRect = getScaledBbox(box.box);
-      if (isOverlapping(dragRect, boxRect)) {
-        overlappingIndices.push(index);
-      }
-    });
-
-    // 선택된 박스들 추가
-    if (overlappingIndices.length > 0) {
-      onSelectBoxes(overlappingIndices);
-    }
-
-    setDragState(prev => ({ ...prev, isDragging: false }));
-  }, [dragState.isDragging, getDragRect, textBoxes, getScaledBbox, isOverlapping, onSelectBoxes]);
-
-  // 개별 박스 클릭
+  // Individual box click
   const handleBoxClick = useCallback((e: React.MouseEvent, index: number) => {
     e.stopPropagation();
-    // 드래그 중이 아닐 때만 토글
-    if (!dragState.isDragging) {
-      onToggleBox(index);
-    }
-  }, [dragState.isDragging, onToggleBox]);
-
-  const dragRect = getDragRect();
+    onToggleBox(index);
+  }, [onToggleBox]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-gray-900 font-medium">텍스트 영역 선택</h3>
-        <p className="text-sm text-gray-500">
-          드래그하여 영역 선택 또는 클릭하여 개별 선택
-        </p>
+      {/* Header section */}
+      <div className="flex items-start justify-between bg-gradient-pastel-blue p-4 rounded-toss shadow-soft">
+        <div className="flex-1">
+          <h3 className="text-gray-900 font-semibold mb-1 flex items-center gap-2">
+            텍스트 영역 선택
+            <Info className="w-4 h-4 text-gray-400" />
+          </h3>
+          <p className="text-sm text-gray-600">
+            클릭하여 텍스트 영역을 선택할 수 있습니다
+          </p>
+        </div>
+
+        {/* Zoom controls */}
+        <div className="flex items-center gap-2 glass rounded-toss p-1 shadow-soft">
+          <button
+            onClick={handleZoomOut}
+            className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors btn-press"
+            title="축소"
+          >
+            <ZoomOut className="w-4 h-4 text-gray-600" />
+          </button>
+          <span className="text-xs text-gray-600 min-w-[40px] text-center font-medium">
+            {Math.round(userScale * 100)}%
+          </span>
+          <button
+            onClick={handleZoomIn}
+            className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors btn-press"
+            title="확대"
+          >
+            <ZoomIn className="w-4 h-4 text-gray-600" />
+          </button>
+          <button
+            onClick={handleResetZoom}
+            className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors btn-press"
+            title="초기화"
+          >
+            <RotateCcw className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
       </div>
 
+      {/* Image container */}
       <div
         ref={containerRef}
-        className="relative rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-100 select-none"
+        className="relative bg-gray-100 rounded-toss overflow-hidden shadow-soft"
         style={{
           width: "100%",
-          height: containerSize.height || "auto",
-          cursor: dragState.isDragging ? "crosshair" : "crosshair",
+          height: containerSize.height || 500,
         }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
       >
-        {/* 원본 이미지 */}
+        {/* Original image */}
         <img
           src={imageSrc}
           alt="OCR 대상 이미지"
@@ -209,7 +150,7 @@ export function ImageOverlay({
           draggable={false}
         />
 
-        {/* 마스킹 레이어 - 선택되지 않은 영역 어둡게 */}
+        {/* Masking layer */}
         <svg
           className="absolute top-0 left-0 pointer-events-none"
           width={containerSize.width}
@@ -233,18 +174,17 @@ export function ImageOverlay({
             </mask>
           </defs>
 
-          {/* 마스킹 오버레이 (선택 안 된 영역 어둡게) */}
           {selectedIndices.length > 0 && (
             <rect
               width="100%"
               height="100%"
-              fill="rgba(0, 0, 0, 0.5)"
+              fill="rgba(0, 0, 0, 0.4)"
               mask="url(#selectedMask)"
             />
           )}
         </svg>
 
-        {/* 텍스트 박스 오버레이 */}
+        {/* Text box overlay */}
         <svg
           className="absolute top-0 left-0 pointer-events-none"
           width={containerSize.width}
@@ -252,81 +192,122 @@ export function ImageOverlay({
         >
           {textBoxes.map((box, index) => {
             const isSelected = selectedIndices.includes(index);
+            const isHovered = hoveredIndex === index;
             const scaledBbox = getScaledBbox(box.box);
 
             return (
               <g key={index} style={{ pointerEvents: "auto" }}>
-                {/* 클릭 가능한 영역 */}
+                {/* Box area */}
                 <polygon
                   points={getPolygonPoints(box.box)}
-                  fill={isSelected ? "rgba(10, 132, 255, 0.3)" : "rgba(255, 255, 255, 0.1)"}
-                  stroke={isSelected ? "#0A84FF" : "rgba(100, 100, 100, 0.5)"}
-                  strokeWidth={isSelected ? 2 : 1}
-                  className="cursor-pointer transition-all hover:fill-blue-200/50 hover:stroke-blue-400"
+                  fill={isSelected 
+                    ? "rgba(91, 124, 250, 0.25)" 
+                    : isHovered 
+                      ? "rgba(91, 124, 250, 0.15)"
+                      : "rgba(255, 255, 255, 0.05)"}
+                  stroke={isSelected 
+                    ? "#5b7cfa" 
+                    : isHovered
+                      ? "#93BBFC"
+                      : "rgba(148, 163, 184, 0.4)"}
+                  strokeWidth={isSelected ? 2.5 : isHovered ? 2 : 1}
+                  className="cursor-pointer transition-all duration-200"
                   onClick={(e) => handleBoxClick(e, index)}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                 />
 
-                {/* 선택 체크 표시 */}
+                {/* Selected check mark */}
                 {isSelected && (
-                  <>
+                  <g className="animate-spring-in">
                     <circle
-                      cx={scaledBbox.left + 12}
-                      cy={scaledBbox.top + 12}
-                      r={10}
-                      fill="#0A84FF"
-                    />
-                    <path
-                      d={`M ${scaledBbox.left + 7} ${scaledBbox.top + 12} L ${scaledBbox.left + 11} ${scaledBbox.top + 16} L ${scaledBbox.left + 17} ${scaledBbox.top + 8}`}
+                      cx={scaledBbox.left + 14}
+                      cy={scaledBbox.top + 14}
+                      r={11}
+                      fill="#5b7cfa"
                       stroke="white"
                       strokeWidth={2}
-                      fill="none"
                     />
-                  </>
+                    <path
+                      d={`M ${scaledBbox.left + 8} ${scaledBbox.top + 14} L ${scaledBbox.left + 12} ${scaledBbox.top + 18} L ${scaledBbox.left + 20} ${scaledBbox.top + 10}`}
+                      stroke="white"
+                      strokeWidth={2.5}
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </g>
+                )}
+
+                {/* Hover text preview (tooltip) */}
+                {isHovered && !isSelected && (
+                  <g className="animate-fade-in">
+                    <rect
+                      x={scaledBbox.left}
+                      y={scaledBbox.top - 30}
+                      width={Math.min(200, scaledBbox.width)}
+                      height={24}
+                      fill="rgba(0, 0, 0, 0.8)"
+                      rx={8}
+                    />
+                    <text
+                      x={scaledBbox.left + 8}
+                      y={scaledBbox.top - 12}
+                      fill="white"
+                      fontSize="12"
+                      fontFamily="system-ui, sans-serif"
+                    >
+                      {box.text.slice(0, 25)}{box.text.length > 25 ? '...' : ''}
+                    </text>
+                  </g>
                 )}
               </g>
             );
           })}
         </svg>
-
-        {/* 드래그 선택 영역 표시 */}
-        {dragState.isDragging && dragRect.width > 5 && dragRect.height > 5 && (
-          <div
-            className="absolute border-2 border-[#0A84FF] bg-blue-500/20 pointer-events-none"
-            style={{
-              left: dragRect.left,
-              top: dragRect.top,
-              width: dragRect.width,
-              height: dragRect.height,
-            }}
-          />
-        )}
       </div>
 
-      {/* 선택된 텍스트 목록 */}
-      {selectedIndices.length > 0 && (
-        <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-          <p className="text-sm text-blue-700 font-medium mb-2">
-            선택된 텍스트 ({selectedIndices.length}개)
+      {/* Hint message */}
+      {selectedIndices.length === 0 && textBoxes.length > 0 && (
+        <div className="text-center py-3 px-4 bg-gradient-pastel-yellow rounded-toss border border-amber-200 shadow-soft">
+          <p className="text-sm text-amber-700">
+            텍스트 영역 하나를 선택하여 관련 강의를 찾아보세요
           </p>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
-            {selectedIndices.sort((a, b) => a - b).map((idx) => (
-              <div
-                key={idx}
-                className="flex items-start gap-2 text-sm text-gray-800 bg-white rounded-lg px-3 py-2"
-              >
-                <span className="text-blue-500 font-medium min-w-[24px]">{idx + 1}.</span>
-                <span className="flex-1">{textBoxes[idx]?.text}</span>
-                <button
-                  onClick={() => onToggleBox(idx)}
-                  className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
+        </div>
+      )}
+      
+      {/* Selected state message */}
+      {selectedIndices.length > 0 && (
+        <div className="text-center py-3 px-4 bg-gradient-pastel-blue rounded-toss border border-blue-200 shadow-soft">
+          <p className="text-sm text-blue-700">
+            ✓ 텍스트가 선택되었습니다. 다른 영역을 클릭하면 선택이 변경됩니다.
+          </p>
         </div>
       )}
     </div>
   );
+}
+
+// Custom scrollbar style
+const scrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(91, 124, 250, 0.3);
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(91, 124, 250, 0.5);
+  }
+`;
+
+// Style injection
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = scrollbarStyles;
+  document.head.appendChild(style);
 }
