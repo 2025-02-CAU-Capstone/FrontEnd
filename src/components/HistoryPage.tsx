@@ -32,6 +32,9 @@ export function HistoryPage() {
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
 
   const [titles, setTitles] = useState<Record<number, {
     lectureTitle: string;
@@ -172,21 +175,21 @@ export function HistoryPage() {
     }
 
     // Time filter
-    const now = new Date();
+    const now = parseKST(new Date().toISOString());
     switch (filterType) {
       case 'today':
         filtered = filtered.filter(item => {
-          const date = new Date(item.createdAt);
+          const date = parseKST(item.createdAt);
           return date.toDateString() === now.toDateString();
         });
         break;
       case 'week':
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        filtered = filtered.filter(item => new Date(item.createdAt) >= weekAgo);
+        filtered = filtered.filter(item => parseKST(item.createdAt) >= weekAgo);
         break;
       case 'month':
         const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        filtered = filtered.filter(item => new Date(item.createdAt) >= monthAgo);
+        filtered = filtered.filter(item => parseKST(item.createdAt) >= monthAgo);
         break;
     }
 
@@ -194,6 +197,22 @@ export function HistoryPage() {
   };
 
   const filteredHistory = getFilteredHistory();
+
+  // 전체 페이지 수 계산
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+
+  // 현재 페이지에 표시할 데이터
+  const paginatedHistory = filteredHistory.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+
 
   // Toggle expanded item
   const toggleExpanded = (id: number) => {
@@ -386,7 +405,7 @@ export function HistoryPage() {
             <div className="bg-gradient-pastel-green rounded-toss p-4 text-center shadow-soft">
               <Clock className="w-5 h-5 text-green-600 mx-auto mb-2" />
               <p className="text-2xl font-bold text-gray-900">
-                {filteredHistory.filter(h => new Date(h.createdAt).toDateString() === new Date().toDateString()).length}
+                {filteredHistory.filter(h => parseKST(h.createdAt).toDateString() === parseKST(new Date().toISOString()).toDateString()).length}
               </p>
               <p className="text-xs text-gray-600">오늘 학습</p>
             </div>
@@ -398,9 +417,51 @@ export function HistoryPage() {
               <p className="text-xs text-gray-600">강의 수</p>
             </div>
           </div>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          {/* Prev button */}
+          <button
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded-toss text-sm btn-press 
+              ${currentPage === 1 ? "text-gray-400 cursor-not-allowed" : "text-gray-700 hover:bg-gray-100"}
+            `}
+          >
+            이전
+          </button>
+
+          {/* Page numbers */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => goToPage(page)}
+              className={`px-3 py-1 rounded-toss text-sm btn-press 
+                ${currentPage === page
+                  ? "bg-purple-500 text-white shadow-soft"
+                  : "text-gray-700 hover:bg-gray-100"}
+              `}
+            >
+              {page}
+            </button>
+          ))}
+
+          {/* Next button */}
+          <button
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded-toss text-sm btn-press 
+              ${currentPage === totalPages ? "text-gray-400 cursor-not-allowed" : "text-gray-700 hover:bg-gray-100"}
+            `}
+          >
+            다음
+          </button>
+        </div>
+      )}
+
 
           {/* History items */}
-          {filteredHistory.map((item, idx) => {
+          {paginatedHistory.map((item, idx) => {
             const isExpanded = expandedItems.has(item.id);
             const isSelected = selectedItems.has(item.id);
 
